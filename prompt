@@ -1,0 +1,18 @@
+Design a tkinter application, screen_recorder, that has the following features:
+
+1. Opens a window with buttons for users to start and stop recording. 
+2. Provides a sleek, modern, and user-friendly graphical interface for users to apply a few common options for video recording, including resolution, frames per second, and audio input. 
+3. Records both the screen, as well as audio input and output from microphones, speakers, etc
+4. Once the start button is pressed, continue recording the screen until the stop button is pressed. 
+5. Once the stop button is pressed, prompt the user whether they want to save the video or discard it
+6. If they select save, open a file select dialog box and default to a size efficient file type
+   1. the file type should be a video file type, and have separable audio and video streams
+7. Also on save, if the appropriate box was checked (it is checked by default), uses computer vision to index two things to the particular point in the video:
+    1. The videos will typically show excel charts and tables. The tables should be indexed to the time in the video. 
+    2. The videos will typically have live transcripts. Would also want to index who is talking when. 
+8. Add a help/documentation section for users to understand different features of screen recorder.
+9.  The app should be flexible enough to run either the audio or the video or both through external ai
+10. Uses pytorch to run the computer vision models
+11. Uses class based design and object oriented programming
+
+Please provide a step-by-step explanation and code snippets for implementing each feature in the tkinter application, as well as the overall design and structure of the application. Each step should be a single method in the overall class structure, and code snippets should be provided for each method.
