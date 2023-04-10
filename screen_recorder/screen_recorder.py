@@ -9,38 +9,60 @@ import threading
 import os
 import torch
 from PIL import ImageGrab
+from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
 
 class ScreenRecorderApp(tk.Tk):
     def __init__(self,
-                 temp_video_path="temp_output.mp4",
-                 temp_audio_path="temp_audio.wav",
-                 output_video_path="output.mp4"):
+                 temp_video_path : str = "temp_output.mp4",
+                 fps : int = 30,
+                 resolution : str = "480p",
+                 
+                 audio_channels : int = 2,
+                 audio_sample_rate : int = 44100,
+                 audio_chunk_size : int = 1024,
+                 audio_format=pyaudio.paInt16,
+                 audio_input : int = 0,
+                 temp_audio_path : str = "temp_audio.wav",
+                 output_video_path="output.mp4",
+                 output_audio_path="output.wav"):
         super().__init__()
-        self.temp_video_path = temp_video_path
-        self.temp_audio_path = temp_audio_path
+
+        # Create a variable to store the recording status
+        self.is_recording = False
 
         # Initialize necessary attributes for audio recording
-        self.channels = 2
-        self.sample_rate = 44100
-        self.chunk = 1024
-        self.audio_format = pyaudio.paInt16
+        self.audio_attr = {
+            'channels': audio_channels
+            , 'sample_rate': audio_sample_rate
+            , 'chunk': audio_chunk_size
+            , 'audio_format': audio_format
+            , 'audio_input': audio_input
+            , 'temp_audio_path': temp_audio_path
+        }
         self.audio = pyaudio.PyAudio()
+
+        # Initialize necessary attributes for video recording
+        self.video_attr = {
+            'temp_video_path': temp_video_path
+            , 'frame_rate': str(fps)
+            , 'resolution': resolution
+        }
+        self.video_writer = None
+         
         self.title("Screen Recorder")
         self.geometry("600x400")
         self.configure(bg="white")
         self.create_widgets()
 
-        # Create a variable to store the recording status
-        self.is_recording = False
+        
 
         
     
     def create_widgets(self):
         # Create and place the Start Recording button in the center of the window
+        # put the button in the center of the window, shift it up by 20 pixels
         self.start_button = ttk.Button(self, text="Start", command=self.start_recording)
         self.start_button.pack(pady=10)
-
-        # put the button in the center of the window, shift it up by 50 pixels
         self.start_button.place(relx=0.5, rely=0.5, anchor="center", y=-20)
 
         # Create and place the Stop Recording button
@@ -49,46 +71,26 @@ class ScreenRecorderApp(tk.Tk):
         self.stop_button.place(relx=0.5, rely=0.5, anchor="center", y=20)
         
         # Other widgets for options such as resolution, frame rate, and audio input can be created and placed here.
+        
+        # add a label and dropdown menu for resolution on the left side of the window
         self.resolution_label = ttk.Label(self, text="Resolution:")
-        
-        # place the label in the bottom left side of the window (leave enough space for the dropdown menu)
         self.resolution_label.place(relx=0.5, rely=0.5, anchor="center", x=-200, y=115)
-
-        # create a string variable to store the resolution
-        self.resolution = tk.StringVar(value="1080p")
-
-        # create a dropdown menu for resolution
+        self.resolution = tk.StringVar(value=self.video_attr['resolution'])
         self.resolution_menu = ttk.OptionMenu(self, self.resolution, "480p", "720p", "1080p", "4k")
-        
-        # place the dropdown menu on the left side of the window, under the label
         self.resolution_menu.place(relx=0.5, rely=0.5, anchor="center", x=-200, y=145)
 
-        # create a label for the frame rate
+        # create a label for the frame rate on the right side of the window
         self.frame_rate_label = ttk.Label(self, text="Frame Rate:")
-        
-        # place the label on the right side of the window
         self.frame_rate_label.place(relx=0.5, rely=0.5, anchor="center", x=-100, y=115)
-        
-        # create a string variable to store the frame rate
-        self.frame_rate = tk.StringVar(value="30")
-
-        # create a dropdown menu for frame rate
+        self.frame_rate = tk.StringVar(value=self.video_attr['frame_rate'])
         self.frame_rate_menu = ttk.OptionMenu(self, self.frame_rate, "30", "60", "90", "120")
         self.frame_rate_menu.pack(pady=10)
-
-        # place the dropdown menu on the right side of the window, under the label
         self.frame_rate_menu.place(relx=0.5, rely=0.5, anchor="center", x=-100, y=145)
 
         # create a label for the audio input
         self.audio_input_label = ttk.Label(self, text="Audio Input:")
-        
-        # place the label on the right side of the window
         self.audio_input_label.place(relx=0.5, rely=0.5, anchor="center", x=200, y=115)
-
-        # create a string variable to store the audio input
         self.audio_input = tk.StringVar(value="Both")
-
-        # create a dropdown menu for audio input
         self.audio_input_menu = ttk.OptionMenu(self, self.audio_input, "Both", "Microphone", "System Audio")
         
         # place the dropdown menu on the right side of the window, under the label
@@ -122,6 +124,11 @@ class ScreenRecorderApp(tk.Tk):
         self.frame_rate = int(self.frame_rate.get())
         self.audio_input = self.audio_input.get()
         self.audio_format = self.audio_format.get()
+
+        self.video_writer = cv2.VideoWriter(self.video_attr['temp_video_path'],
+                                            cv2.VideoWriter_fourcc(*'mp4v'),
+                                            self.video_attr['frame_rate'],
+                                            self.video_attr['resolution'])
         
         # Map the audio_format string to the corresponding PyAudio format constant
         audio_format_mapping = {
@@ -172,15 +179,15 @@ class ScreenRecorderApp(tk.Tk):
         file_path = filedialog.asksaveasfilename(defaultextension=".mp4")
         
         # Save the file
-        os.rename(self.temp_video_path, file_path)
+        os.rename(self.video_attr['temp_video_path'], file_path)
 
         # Close the save/discard dialog
         self.save_discard_dialog.destroy()
 
     def discard_recording(self):
         # Delete the temporary recording files
-        os.remove(self.temp_video_path)
-        os.remove(self.temp_audio_path)
+        os.remove(self.video_attr['temp_video_path'])
+        os.remove(self.video_attr['temp_video_path'])
 
         # Close the save/discard dialog
         self.save_discard_dialog.destroy()
@@ -189,7 +196,7 @@ class ScreenRecorderApp(tk.Tk):
         # Set up the video recording using OpenCV
         screen_resolution = self.get_screen_resolution()
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        out = cv2.VideoWriter(self.temp_video_path, fourcc, self.frame_rate, screen_resolution)
+        out = cv2.VideoWriter(self.video_attr['temp_video_path'], fourcc, self.frame_rate, screen_resolution)
 
         # Record the video
         self.is_recording = True
@@ -228,7 +235,7 @@ class ScreenRecorderApp(tk.Tk):
         audio.terminate()
 
         # Save the audio to a temporary file
-        wave_file = wave.open(self.temp_audio_path, "wb")
+        wave_file = wave.open(self.audio_attr['temp_audio_path'], "wb")
         wave_file.setnchannels(self.channels)
         wave_file.setsampwidth(audio.get_sample_size(self.audio_format))
         wave_file.setframerate(self.sample_rate)
@@ -236,9 +243,11 @@ class ScreenRecorderApp(tk.Tk):
         wave_file.close()
 
     def merge_streams(self):
-        # Merge the video and audio streams using FFMPEG
-        command = f"ffmpeg -i {self.temp_video_path} -i {self.temp_audio_path} -c copy {self.temp_video_path}"
-        os.system(command)
+        # Merge the video and audio streams using moviepy
+        video = VideoFileClip(self.video_attr['temp_video_path'])
+        audio = AudioFileClip(self.audio_attr['temp_audio_path'])
+        video_with_audio = video.set_audio(audio)
+        video_with_audio.write_videofile(self.video_attr['temp_video_path'], codec='libx264', audio_codec='aac')
 
     # Add methods for capturing the screen, getting screen resolution, 
     # applying computer vision models, and indexing the content.

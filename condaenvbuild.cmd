@@ -1,1 +1,3 @@
-conda create -n screen python numpy pyaudio pytesseract Pillow Leptonica espnet setuptools packaging configargparse typeguard humanfriendly scipy filelock librosa jamo PyYAML h5py pytorch nltk protobuf hydra-core opt-einsum sentencepiece ctc-segmentation pyworld pypinyin fast-bss-eval editdistance matplotlib editdistance wandb tensorboard torchaudio pytorch
+conda create -n scrn -c conda-forge python pyaudio numpy pytorch pillow moviepy scipy matplotlib pytesseract transformers datasets tokenizers
+conda activate scrn
+pip install opencv-python
